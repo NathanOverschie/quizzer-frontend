@@ -12,9 +12,12 @@
     "typescript": "^5.3.3",
     "web-vitals": "^2.1.4"
   },
+  "devDependencies": {
+    "@babel/plugin-proposal-private-property-in-object": "7.21.11"
+  },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "react-scripts build && cp -r ./build/* ./../../Quizzer/src/main/resources/static/",
     "postbuild": "",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
