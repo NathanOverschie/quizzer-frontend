@@ -1,71 +1,39 @@
-import {useEffect, useState} from 'react'
+import { useEffect, useState } from 'react'
+import { decode } from 'he';
 import './App.css';
 
 
+
 function fetchQuestions() {
-  return fetch("questions").then(x => {
+  return fetch("/questions").then(x =>
     x.json()
-  });
+  ).catch(x => {
+    return [];
+  }
+  );
 }
 
 function fetchCheckAnswers(id, answer) {
-  return fetch("checkanswers",
+  return fetch("/checkanswers",
     {
       method: "POST",
-      body:
-      {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        answer: answer,
         ID: id,
-        answer: answer
-      }
-    }).then(x => {
-      return x.json()
+      })
+    }).then(x =>
+      x.json()
+    ).catch(x => {
+      return [];
     });
 }
 
-// function fetchQuestions() {
 
-//   console.log("questions fetched")
+function PossibleAnswer({ possibleAnswer, setActive, active, id, setQuestionsAnswered }) {
 
-//   return new Promise((resolve, reject) => {
-//     resolve([{
-//       "ID": 0,
-//       "text": "Klingons respect their disabled comrades, and those who are old, injuried, and helpless.",
-//       "possibleAnswers": ["False", "True"]
-//     },
-//     {
-//       "ID": 1,
-//       "text": "Which famous rapper is featured in Jack &Uuml; (Skrillex and Diplo)&#039;s 2015 single called &quot;Febreze&quot;?",
-//       "possibleAnswers": ["2 Chainz", "Kendrick Lamar", "Fatman Scoop", "Future"]
-//     },
-//     {
-//       "ID": 2,
-//       "text": "Without enchantments, which pickaxe in minecraft mines blocks the quickest.",
-//       "possibleAnswers": ["Iron", "Diamond", "Golden ", "Obsidian"]
-//     },
-//     {
-//       "ID": 3,
-//       "text": "The LS3 engine is how many cubic inches?",
-//       "possibleAnswers": ["427", "346", "364", "376"]
-//     },
-//     {
-//       "ID": 4,
-//       "text": "In Norse mythology, Thor once dressed as a woman.",
-//       "possibleAnswers": ["False", "True"]
-//     }]);
-//   });
-// }
-
-// function fetchCheckAnswers() {
-
-//   console.log("answers fetched")
-
-//   return new Promise((resolve, reject) => {
-//     resolve(true);
-//   });
-// }
-
-function PossibleAnswer({possibleAnswer, setActive, active, id}) {
-  
   const [color, setColor] = useState("black");
   let onClick;
 
@@ -73,46 +41,46 @@ function PossibleAnswer({possibleAnswer, setActive, active, id}) {
     setColor("grey");
   }
 
-  if (active) {    
+  if (active) {
     onClick = () => {
       fetchCheckAnswers(id, possibleAnswer)
         .then(response => {
-      console.log(response);
-      if (response === true) {
-        console.log("update correct")
-        setColor("green");
-      } else if (response === false) {
-        console.log("update correct")
-        setColor("red");
-      }
+          if (response === true) {
+            setColor("green");
+          } else if (response === false) {
+            setColor("red");
+          }
         })
         .then(() => {
-      setActive(false);
-    });
+          setActive(false);
+          setQuestionsAnswered(s => s + 1);
+        });
+    }
+  } else {
+    onClick = () => { };
   }
-} else {
-    onClick = () => { };  
-}
-  
-  return (<li onClick={onClick} style={{ color: color }}>{possibleAnswer}</li>);
+
+  return (<li onClick={onClick} style={{ color: color }}>{decode(possibleAnswer)}</li>);
 }
 
-function PossibleAnswers({possibleAnswers, setActive, active, id}) {
+function PossibleAnswers({ possibleAnswers, setActive, active, id, setQuestionsAnswered }) {
 
   return (
     <ul>
-      {possibleAnswers.map((p, index) => <PossibleAnswer key={index} possibleAnswer={p} setActive={setActive} active={active} id={id} />)}
+      {possibleAnswers.map((p, index) => <PossibleAnswer key={index} possibleAnswer={p} setActive={setActive} active={active} id={id} setQuestionsAnswered={setQuestionsAnswered} />)}
     </ul>);
 }
 
-function Question({ question }) {  
+function Question({ question, setQuestionsAnswered }) {
 
   let [active, setActive] = useState(true);
 
+  const id = question.ID;
+
   return (
     <>
-      <p>{question.text}</p>
-      <PossibleAnswers possibleAnswers={question.possibleAnswers} setActive={setActive} active={active} id={question.id} />
+      <p>{decode(question.text)}</p>
+      <PossibleAnswers possibleAnswers={question.possibleAnswers} setActive={setActive} active={active} id={id} setQuestionsAnswered={setQuestionsAnswered} />
     </>);
 }
 
@@ -120,24 +88,55 @@ function Questions() {
 
   const [questions, setQuestions] = useState([]);
 
-  useEffect(() => {
-    fetchQuestions()
+  const [questionsAnswered, setQuestionsAnswered] = useState(0);
+
+  const [nextQuestions, setNextQuestions] = useState(false);
+
+  if (questionsAnswered > 0) {
+    if (questionsAnswered === questions.length && !nextQuestions) {
+      setNextQuestions(true);
+      console.log("show next questions button");
+    }
+  }
+
+  function updateQuestions() {
+    return fetchQuestions()
       .then(x => {
         setQuestions(x);
+        setQuestionsAnswered(0);
+        console.log('new questions');
+        console.log(x);
       });
+  }
+
+  useEffect(() => {
+    updateQuestions();
   }, []);
+
+  function onClick() {
+    updateQuestions().then(
+      () => {
+        setNextQuestions(false);
+        console.log("button gone")
+      }
+    )
+  }
 
   return (
     <div>
-      {questions.map((q, index) => <Question key={index} question={q} />)}
+      {questions.map((q, index) => <Question key={q.ID} question={q} setQuestionsAnswered={setQuestionsAnswered} />)}
+      {nextQuestions && <p onClick={onClick}>next</p>}
     </div>
   );
 }
 
+
 function App() {
+
+
   return (
     <div className="App">
-      <Questions/>
+      <Questions />
     </div>
   );
 }
